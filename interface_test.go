@@ -1,6 +1,7 @@
 package jap
 
 import (
+	"github.com/mcuadros/go-defaults"
 	"io/ioutil"
 	"regexp"
 	"strconv"
@@ -38,7 +39,8 @@ func TestParseInterface(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		var inter CiscoInterface
+		inter := new(CiscoInterface)
+		defaults.SetDefaults(inter)
 		err = inter.Parse(string(content))
 		if err != nil {
 			t.Error(err)

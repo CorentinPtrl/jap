@@ -31,12 +31,13 @@ type CiscoInterface struct {
 	NativeVlan            int      `reg:"switchport trunk native vlan ([0-9]+)" cmd:"switchport trunk native vlan %d"`
 	TrunkAllowedVlan      []int    `reg:"switchport trunk allowed vlan( add)? ([\\d,-]+)" cmd:"switchport trunk allowed vlan %s"`
 	Trunk                 bool     `reg:"switchport mode trunk" cmd:"switchport mode trunk"`
-	Shutdown              bool     `reg:"shutdown" cmd:"shutdown"`
+	Shutdown              bool     `reg:"shutdown" cmd:"shutdown" default:"false"`
 	SCBroadcastLevel      float64  `reg:"storm-control broadcast level ([0-9\\.]+)" cmd:"storm-control broadcast level %.2f"`
 	STPPortFast           string   `reg:"spanning-tree portfast (disable|edge|network)" cmd:"spanning-tree portfast %s"`
 	STPBpduGuard          string   `reg:"spanning-tree bpduguard (disable|enable)" cmd:"spanning-tree bpduguard %s"`
 	ServicePolicyInput    string   `reg:"service-policy input ([[:print:]]+)" cmd:"service-policy input %s"`
 	ServicePolicyOutput   string   `reg:"service-policy output ([[:print:]]+)" cmd:"service-policy output %s"`
+	Switchport            bool     `cmd:"switchport" reg:"switchport" default:"true"`
 	DhcpSnoopingThrust    bool     `reg:"ip dhcp snooping trust" cmd:"ip dhcp snooping trust"`
 	Ips                   []Ip     `reg:"ip address.*" cmd:"ip address"`
 	IPHelperAddresses     []string `reg:"ip helper-address (\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})" cmd:"ip helper-address %s"`
@@ -49,6 +50,7 @@ type Ip struct {
 	Subnet    string `reg:"ip address (?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}) (\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})" cmd:" %s"`
 	Secondary bool   `reg:"ip address (?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}) (?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})( secondary)(?: vrf ([\\w\\-]+))?" cmd:" secondary"`
 	VRF       string `reg:"ip address (?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}) (?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(?: secondary)?( vrf ([\\w\\-]+))" cmd:" vrf %s"`
+	DHCP      bool   `reg:"ip address dhcp" cmd:" dhcp"`
 }
 
 func (inter *CiscoInterface) Parse(part string) error {

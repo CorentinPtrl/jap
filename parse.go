@@ -1,6 +1,7 @@
 package jap
 
 import (
+	"github.com/mcuadros/go-defaults"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -61,12 +62,13 @@ func Parse(config string) (RunningConfig, error) {
 		// Get all interfaces
 		re, _ = regexp.Compile(`^\s*interface ([\w\/\.\-\:]+)`)
 		if re.MatchString(firstLine) {
-			var inter CiscoInterface
+			inter := new(CiscoInterface)
+			defaults.SetDefaults(inter)
 			err := inter.Parse(part)
 			if err != nil {
 				return RunningConfig{}, err
 			}
-			running.Interfaces = append(running.Interfaces, inter)
+			running.Interfaces = append(running.Interfaces, *inter)
 			continue
 		}
 
@@ -124,8 +126,9 @@ func processParse(part string, parsed any) error {
 	for i := 0; i < rv.NumField(); i++ {
 		field := rt.Field(i)
 		tag := field.Tag.Get("reg")
+
 		if tag != "" {
-			re := regexp.MustCompile(tag)
+			re := regexp.MustCompile("(?:no\\s+)?" + tag)
 			// @todo check if no is with the command!
 			data := re.FindAllStringSubmatch(part, -1)
 			if len(data) == 0 {
@@ -145,6 +148,10 @@ func processParse(part string, parsed any) error {
 				tmp.Field(i).SetInt(value)
 				break
 			case reflect.Bool:
+				if strings.HasPrefix(data[0][0], "no ") {
+					tmp.Field(i).SetBool(false)
+					break
+				}
 				tmp.Field(i).SetBool(true)
 				break
 			case reflect.Float64:
