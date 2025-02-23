@@ -3,9 +3,71 @@ package jap
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+func getValueAndField(data interface{}, path string) (*reflect.Value, *reflect.StructField, error) {
+	path = strings.TrimPrefix(path, ".")
+
+	parts := strings.Split(path, ".")
+
+	val := reflect.ValueOf(data)
+	typ := reflect.TypeOf(data)
+
+	var structField *reflect.StructField
+
+	for _, part := range parts {
+		re := regexp.MustCompile(`^([a-zA-Z0-9_]+)?\[(\d+)\]$`)
+		matches := re.FindStringSubmatch(part)
+
+		if matches != nil {
+			fieldName := matches[1]
+			index, _ := strconv.Atoi(matches[2])
+
+			if fieldName != "" {
+				field, found := typ.FieldByName(fieldName)
+				if !found {
+					return nil, nil, fmt.Errorf("field %s not found", fieldName)
+				}
+				structField = &field
+				val = val.FieldByName(fieldName)
+				typ = val.Type()
+			}
+
+			if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+				return nil, nil, fmt.Errorf("field %s is not a slice or array", part)
+			}
+
+			if index < 0 || index >= val.Len() {
+				return nil, nil, fmt.Errorf("index %d out of range", index)
+			}
+			val = val.Index(index)
+
+		} else {
+			field, found := typ.FieldByName(part)
+			if !found {
+				return nil, nil, fmt.Errorf("field %s not found", part)
+			}
+
+			structField = &field
+			val = val.FieldByName(part)
+			typ = val.Type()
+		}
+
+		if val.Kind() == reflect.Ptr {
+			val = val.Elem()
+			typ = val.Type()
+		}
+
+		if !val.IsValid() {
+			return nil, nil, fmt.Errorf("invalid path: %s", part)
+		}
+	}
+
+	return &val, structField, nil
+}
 
 // Generate creates a cisco command line from the given struct.
 // The command gets generated from the cmd tag of the struct and parsed with a printf.
@@ -14,28 +76,52 @@ func Generate(parsed any) (string, error) {
 
 	t := reflect.TypeOf(parsed)
 	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("cmd")
-		if tag != "" {
-			defaultval := field.Tag.Get("default")
-			cmd, err := generateCMD(reflect.ValueOf(&parsed).Elem().Elem().Field(i), tag, defaultval)
-			if err != nil {
-				return "", err
-			}
-			if cmd == "" {
-				continue
-			}
-			cmd = "  " + cmd + "\n"
-			config = config + cmd
+		cmd, err := GenerateField(t.Field(i), reflect.ValueOf(&parsed).Elem().Elem().Field(i))
+		if err != nil {
+			return "", err
 		}
+		if cmd == "" {
+			continue
+		}
+		cmd = "  " + cmd + "\n"
+		config = config + cmd
 	}
 	config = config + "!"
 	return config, nil
 }
 
+func GenerateFieldByPath(parsed any, path string) (string, error) {
+	val, structField, err := getValueAndField(parsed, path)
+	if err != nil {
+		return "", err
+	}
+
+	cmd, err := GenerateField(*structField, *val)
+	if err != nil {
+		return "", err
+	}
+
+	return cmd, nil
+}
+
+func GenerateField(field reflect.StructField, value reflect.Value) (string, error) {
+	tag := field.Tag.Get("cmd")
+	if tag != "" {
+		defaultval := field.Tag.Get("default")
+		cmd, err := generateCMD(value, tag, defaultval)
+		if err != nil {
+			return "", err
+		}
+		return cmd, nil
+	}
+	return "", nil
+}
+
 func generateCMD(field reflect.Value, tag, defaultval string) (string, error) {
 	var cmd string
 	switch field.Type().Kind() {
+	case reflect.Struct:
+		return Generate(field.Interface())
 	case reflect.String:
 		value := field.String()
 		if value == "" {

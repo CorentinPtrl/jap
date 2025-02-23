@@ -15,6 +15,7 @@ type RunningConfig struct {
 	Vlans           []Vlan
 	Interfaces      []CiscoInterface
 	OSPFProcess     []Ospf
+	EIGRPProcess    []Eigrp
 }
 
 // Parse parses a standard cisco running config.
@@ -81,6 +82,18 @@ func Parse(config string) (RunningConfig, error) {
 				return RunningConfig{}, err
 			}
 			running.OSPFProcess = append(running.OSPFProcess, ospf)
+			continue
+		}
+
+		// Router EIGRP
+		re, _ = regexp.Compile(`^\s*router eigrp (\d+)`)
+		if re.MatchString(firstLine) {
+			var eigrp Eigrp
+			err := eigrp.Parse(part)
+			if err != nil {
+				return RunningConfig{}, err
+			}
+			running.EIGRPProcess = append(running.EIGRPProcess, eigrp)
 			continue
 		}
 
